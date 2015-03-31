@@ -44,6 +44,7 @@ from openerp.addons.magentoerpconnect.unit.import_synchronizer import (
     DelayedBatchImport,
     MagentoImportSynchronizer,)
 from openerp.addons.connector.exception import FailedJobError
+from openerp.tools.translate import _
 
 
 @magento(replacing=MagentoModelBinder)
@@ -445,11 +446,11 @@ class AttributeOption(orm.Model):
     #Automatically create the magento binding for the option created
     def create(self, cr, uid, vals, context=None):
         option_id = super(AttributeOption, self).\
-            create(cr, uid, vals, context=None)
+            create(cr, uid, vals, context=context)
         attr_obj = self.pool['attribute.attribute']
         mag_option_obj = self.pool['magento.attribute.option']
-        attr = attr_obj.browse(cr, uid, vals['attribute_id'], context=context)
-        for binding in attr.magento_bind_ids:
+        option = self.browse(cr, uid, option_id, context=context)
+        for binding in option.attribute_id.magento_bind_ids:
             mag_option_obj.create(cr, uid, {
                 'openerp_id': option_id,
                 'backend_id': binding.backend_id.id,
@@ -504,10 +505,22 @@ class AttributeOptionAdapter(GenericAdapter):
         return self._call('%s.updateOption'% self._magento_model,
                           [attribute_id, option_id, data])
 
+    def delete(self, attribute_id, option_id):
+        return self._call('product_attribute.removeOption',
+                          [attribute_id, option_id])
+
 
 @magento
 class AttributeOptionDeleteSynchronizer(MagentoDeleteSynchronizer):
     _model_name = ['magento.attribute.option']
+
+    def run(self, (magento_attribute_id, magento_option_id)):
+        """ Run the synchronization, delete the record on Magento
+
+        :param magento_id: identifier of the record to delete
+        """
+        self.backend_adapter.delete(magento_attribute_id, magento_option_id)
+        return _('Record %s deleted on Magento') % magento_option_id
 
 
 @magento

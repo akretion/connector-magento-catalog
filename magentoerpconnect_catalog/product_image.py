@@ -31,7 +31,7 @@ from openerp.addons.magentoerpconnect.unit.export_synchronizer import (
     MagentoExporter)
 from openerp.addons.magentoerpconnect.backend import magento
 from openerp.addons.magentoerpconnect.unit.backend_adapter import GenericAdapter
-
+from openerp.addons.magentoerpconnect.product import ProductNotExportedYetRetry
 
 MAGENTO_HELP = "This field is a technical / configuration field for " \
                "the attribute on Magento. \nPlease refer to the Magento " \
@@ -115,6 +115,8 @@ class ProductImageExportMapper(ExportMapper):
         binder = self.get_binder_for_model('magento.product.product')
         external_product_id = binder.to_backend(
             record.openerp_id.product_id.id, True)
+        if not external_product_id:
+            raise ProductNotExportedYetRetry
         return {'product': str(external_product_id)}
 
     @mapping
@@ -146,6 +148,9 @@ class ProductImageExportMapper(ExportMapper):
             }
         }
 
+    @mapping
+    def exclude(self, record):
+        return {'exclude': False}
 
 @magento
 class ProductImageAdapter(GenericAdapter):

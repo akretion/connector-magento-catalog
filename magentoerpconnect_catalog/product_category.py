@@ -162,7 +162,7 @@ class ProductCategoryExporter(MagentoTranslationExporter):
         get_unit = self.environment.get_connector_unit
         self._backend_adapter = get_unit(ProductCategoryAdapter)
         return self._backend_adapter
-
+    
     def _export_dependencies(self):
         """Export parent of the category"""
         record = self.binding_record
@@ -200,7 +200,7 @@ class ProductCategoryExportMapper(ExportMapper):
 
     @mapping
     def sort(self, record):
-        return {'default_sort_by':'price', 'available_sort_by': 'price'}
+        return {'default_sort_by': False, 'available_sort_by': False}
 
     @mapping
     def parent(self, record):
@@ -212,22 +212,23 @@ class ProductCategoryExportMapper(ExportMapper):
         else:
             parent_id = record.magento_parent_id.magento_id
         if not parent_id:
+            raise 'no parent'
             parent_id = 1
-        return {'parent_id':parent_id}
+        return {'parent_id': parent_id}
 
     @mapping
     def active(self, record):
         is_active = record['is_active']
         if not is_active:
             is_active = 0
-        return {'is_active':is_active}
+        return {'is_active': is_active}
 
     @mapping
     def menu(self, record):
         include_in_menu = record['include_in_menu']
         if not include_in_menu:
             include_in_menu = 0
-        return {'include_in_menu':include_in_menu}
+        return {'include_in_menu': include_in_menu}
 
 
 # TODO add mapping for default_sort_by and available_sort_by
@@ -279,15 +280,15 @@ def product_category_modified(session, model_name, record_id, vals):
                 session, binding._model._name, binding.id, 'image',
                 priority=50)
 
-
-@on_record_create(model_names='magento.product.category')
-def magento_product_category_created(session, model_name, record_id, vals):
-    if session.context.get('connector_no_export'):
-        return
-    export_product_category_image.delay(
-        session, 'magento.product.category', record_id, 'image',
-        priority=50)
-
+#TODO should be done in the after_create
+#@on_record_create(model_names='magento.product.category')
+#def magento_product_category_created(session, model_name, record_id, vals):
+#    if session.context.get('connector_no_export'):
+#        return
+#    export_product_category_image.delay(
+#        session, 'magento.product.category', record_id, 'image',
+#        priority=50)
+#
 
 @job
 @related_action(action=unwrap_binding)
