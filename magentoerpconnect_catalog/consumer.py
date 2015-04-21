@@ -66,6 +66,7 @@ def delay_export(session, model_name, record_id, vals=None):
 @on_record_write(model_names=[
         'product.product',
         'product.category',
+        'product.image',
 #        'attribute.attribute',
         'attribute.option',
     ])
