@@ -107,7 +107,6 @@
                 <field name="default_value"
                        attrs="{'invisible':[('frontend_input', 'in',
                        ['media_image', 'multiselect'])]}"/>
-                <field name="entity_type_id"/>
                 <field name="group_id"/>
                 <field name="apply_to"/>
                 <field name="position"/>

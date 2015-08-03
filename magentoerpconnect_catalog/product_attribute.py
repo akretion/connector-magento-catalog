@@ -258,6 +258,7 @@ class MagentoProductAttribute(orm.Model):
             field_type = elm.openerp_id.attribute_type
             map_type = {
                 'char': 'text',
+                'integer': 'text',
                 'text': 'textarea',
                 'float': 'price',
                 'datetime': 'date',
@@ -305,8 +306,6 @@ class MagentoProductAttribute(orm.Model):
             help=MAGENTO_HELP),
         'note': fields.char(
             'Note', size=200, help=MAGENTO_HELP),
-        'entity_type_id': fields.integer(
-            'Entity Type', help=MAGENTO_HELP),
         # boolean fields
         'is_visible_in_advanced_search': fields.boolean(
             'Visible in advanced search?', help=MAGENTO_HELP),
@@ -420,7 +419,6 @@ class ProductAttributeExportMapper(ExportMapper):
         ('default_value', 'default_value'),
         ('is_visible_in_advanced_search', 'is_visible_in_advanced_search'),
         ('note', 'note'),
-        ('entity_type_id', 'entity_type_id'),
         ]
 
     @mapping
