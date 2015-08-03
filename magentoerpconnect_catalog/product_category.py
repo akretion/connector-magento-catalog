@@ -175,6 +175,13 @@ class ProductCategoryExporter(MagentoTranslationExporter):
                                     'magento.product.category',
                                     exporter_class=ProductCategoryExporter)
 
+    def _validate_data(self, data):
+        if 'position' in data and data['position'] <= 0:
+            raise orm.except_orm(
+                _('Error'),
+                _('The position of the category must be stricly '
+                  'superior to 0'))
+
 
 @magento
 class ProductCategoryExportMapper(ExportMapper):
