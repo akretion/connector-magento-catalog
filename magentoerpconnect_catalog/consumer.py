@@ -155,7 +155,7 @@ def delay_option_unlink(session, model_name, record_id):
 # catalogProductAttributeMedia/catalog_product_attribute_media.remove.html
 
 @on_record_unlink(model_names=['magento.product.image'])
-def delay_image_unlink(session, model_name, record_id):
+def delay_magento_image_unlink(session, model_name, record_id):
     if session.context.get('connector_no_export'):
         return
     model = session.pool.get('magento.product.image')
@@ -174,3 +174,10 @@ def delay_image_unlink(session, model_name, record_id):
         export_delete_record.delay(session, 'magento.product.image',
                                    record.backend_id.id, magento_keys)
 
+@on_record_unlink(model_names=['product.image'])
+def delay_product_image_unlink(session, model_name, record_id):
+    model = session.pool.get(model_name)
+    record = model.browse(session.cr, session.uid,
+                          record_id, context=session.context)
+    for binding in record.magento_bind_ids:
+        delay_magento_image_unlink(session, binding._name, binding.id)
