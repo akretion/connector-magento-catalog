@@ -25,19 +25,20 @@ from openerp.addons.connector.unit.mapper import (mapping,
                                                   #changed_by,
                                                   ExportMapper)
 from openerp.addons.magentoerpconnect.unit.delete_synchronizer import (
-        MagentoDeleteSynchronizer)
+    MagentoDeleteSynchronizer)
 from openerp.addons.magentoerpconnect.unit.export_synchronizer import (
-        MagentoTranslationExporter)
+    MagentoTranslationExporter)
 from openerp.addons.magentoerpconnect.backend import magento
 from openerp.addons.magentoerpconnect.product_category import (
     ProductCategoryImageAdapter,
     ProductCategoryAdapter,
     )
 from openerp.addons.connector.unit.synchronizer import ExportSynchronizer
-from openerp.addons.connector.event import on_record_write, on_record_create
+from openerp.addons.connector.event import on_record_write
 from openerp.addons.connector.queue.job import job, related_action
 from openerp.addons.magentoerpconnect.related_action import unwrap_binding
 from openerp.addons.magentoerpconnect.connector import get_environment
+from openerp.tools.translate import _
 
 
 class MagentoProductCategory(orm.Model):
@@ -78,30 +79,20 @@ class MagentoProductCategory(orm.Model):
         'url_key': fields.char('URL-key', size=100, readonly="True"),
         #==== Display Settings ====
         'display_mode': fields.selection([
-                    ('PRODUCTS', 'Products Only'),
-                    ('PAGE', 'Static Block Only'),
-                    ('PRODUCTS_AND_PAGE', 'Static Block & Products')],
-            'Display Mode', required=True, help=MAGENTO_HELP),
+            ('PRODUCTS', 'Products Only'),
+            ('PAGE', 'Static Block Only'),
+            ('PRODUCTS_AND_PAGE', 'Static Block & Products'),
+            ], 'Display Mode', required=True, help=MAGENTO_HELP),
         'is_anchor': fields.boolean('Anchor?', help=MAGENTO_HELP),
         'use_default_available_sort_by': fields.boolean(
             'Default Config For Available Sort By', help=MAGENTO_HELP),
 
-        #TODO use custom attribut for category
-
-        #'available_sort_by': fields.sparse(
-        #    type='many2many',
-        #    relation='magerp.product_category_attribute_options',
-        #    string='Available Product Listing (Sort By)',
-        #    serialization_field='magerp_fields',
-        #    domain="[('attribute_name', '=', 'sort_by'), ('value', '!=','None')]",
-        #    help=MAGENTO_HELP),
-        #filter_price_range landing_page ?????????????
         'default_sort_by': fields.selection([
-                    ('_', 'Config settings'), #?????????????
-                    ('position', 'Best Value'),
-                    ('name', 'Name'),
-                    ('price', 'Price')],
-            'Default sort by', required=True, help=MAGENTO_HELP),
+            ('_', 'Config settings'),
+            ('position', 'Best Value'),
+            ('name', 'Name'),
+            ('price', 'Price'),
+            ], 'Default sort by', required=True, help=MAGENTO_HELP),
 
         #==== Custom Design ====
         'custom_apply_to_products': fields.boolean(
@@ -162,7 +153,7 @@ class ProductCategoryExporter(MagentoTranslationExporter):
         get_unit = self.environment.get_connector_unit
         self._backend_adapter = get_unit(ProductCategoryAdapter)
         return self._backend_adapter
-    
+
     def _export_dependencies(self):
         """Export parent of the category"""
         record = self.binding_record
@@ -187,23 +178,25 @@ class ProductCategoryExporter(MagentoTranslationExporter):
 class ProductCategoryExportMapper(ExportMapper):
     _model_name = 'magento.product.category'
 
-    direct = [('description', 'description'),
-              #change that to mapping top level category has no name
-              ('name', 'name'),
-              ('meta_title', 'meta_title'),
-              ('meta_keywords', 'meta_keywords'),
-              ('meta_description', 'meta_description'),
-              ('display_mode', 'display_mode'),
-              ('is_anchor', 'is_anchor'),
-              ('use_default_available_sort_by', 'use_default_available_sort_by'),
-              ('custom_design', 'custom_design'),
-              ('custom_design_from', 'custom_design_from'),
-              ('custom_design_to', 'custom_design_to'),
-              ('custom_layout_update', 'custom_layout_update'),
-              ('page_layout', 'page_layout'),
-              ('image_name', 'image'),
-              ('image_name', 'thumbnail'),
-             ]
+    direct = [
+        ('description', 'description'),
+        #change that to mapping top level category has no name
+        ('name', 'name'),
+        ('meta_title', 'meta_title'),
+        ('meta_keywords', 'meta_keywords'),
+        ('meta_description', 'meta_description'),
+        ('display_mode', 'display_mode'),
+        ('is_anchor', 'is_anchor'),
+        ('use_default_available_sort_by',
+            'use_default_available_sort_by'),
+        ('custom_design', 'custom_design'),
+        ('custom_design_from', 'custom_design_from'),
+        ('custom_design_to', 'custom_design_to'),
+        ('custom_layout_update', 'custom_layout_update'),
+        ('page_layout', 'page_layout'),
+        ('image_name', 'image'),
+        ('image_name', 'thumbnail'),
+    ]
 
     @mapping
     def sort(self, record):
@@ -236,13 +229,6 @@ class ProductCategoryExportMapper(ExportMapper):
         if not include_in_menu:
             include_in_menu = 0
         return {'include_in_menu': include_in_menu}
-
-
-# TODO add mapping for default_sort_by and available_sort_by
-#@magento(replacing=product_category.ProductCategoryImportMapper)
-#class ProductCategoryImportMapper(product_category.ProductCategoryImportMapper):
-#    _model_name = 'magento.product.category'
-#    direct = product_category.ProductCategoryImportMapper.direct + []
 
 
 @magento
@@ -281,21 +267,12 @@ def product_category_modified(session, model_name, record_id, vals):
     if image_fields:
         categ_obj = session.pool['product.category']
         record = categ_obj.browse(session.cr, session.uid,
-                              record_id, context=session.context)
+                                  record_id, context=session.context)
         for binding in record.magento_bind_ids:
             export_product_category_image.delay(
                 session, binding._model._name, binding.id, 'image',
                 priority=50)
 
-#TODO should be done in the after_create
-#@on_record_create(model_names='magento.product.category')
-#def magento_product_category_created(session, model_name, record_id, vals):
-#    if session.context.get('connector_no_export'):
-#        return
-#    export_product_category_image.delay(
-#        session, 'magento.product.category', record_id, 'image',
-#        priority=50)
-#
 
 @job
 @related_action(action=unwrap_binding)

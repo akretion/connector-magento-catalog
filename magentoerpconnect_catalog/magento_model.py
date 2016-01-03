@@ -23,7 +23,9 @@
 import logging
 from openerp.osv import orm, fields
 from openerp.addons.connector.session import ConnectorSession
-from openerp.addons.magentoerpconnect.unit.import_synchronizer import import_batch
+from openerp.addons.magentoerpconnect.unit.import_synchronizer import (
+    import_batch
+    )
 
 
 _logger = logging.getLogger(__name__)

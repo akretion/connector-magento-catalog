@@ -30,7 +30,9 @@ from openerp.addons.magentoerpconnect.unit.delete_synchronizer import (
 from openerp.addons.magentoerpconnect.unit.export_synchronizer import (
     MagentoExporter)
 from openerp.addons.magentoerpconnect.backend import magento
-from openerp.addons.magentoerpconnect.unit.backend_adapter import GenericAdapter
+from openerp.addons.magentoerpconnect.unit.backend_adapter import (
+    GenericAdapter,
+    )
 from openerp.addons.magentoerpconnect.product import ProductNotExportedYetRetry
 
 MAGENTO_HELP = "This field is a technical / configuration field for " \
@@ -89,9 +91,11 @@ class MagentoProductImage(orm.Model):
          "An image with the same ID on Magento already exists")
     ]
 
+
 @magento
 class ProductImageDeleteSynchronizer(MagentoDeleteSynchronizer):
     _model_name = ['magento.product.image']
+
 
 @magento
 class ProductImageExporter(MagentoExporter):
@@ -101,13 +105,14 @@ class ProductImageExporter(MagentoExporter):
         "Images in magento doesn't retrieve infos on dates"
         return False
 
+
 @magento
 class ProductImageExportMapper(ExportMapper):
     _model_name = 'magento.product.image'
 
     direct = [
-            ('name', 'label'),
-            ('sequence', 'position'),
+        ('name', 'label'),
+        ('sequence', 'position'),
         ]
 
     @mapping
@@ -142,15 +147,16 @@ class ProductImageExportMapper(ExportMapper):
         record = record.browse(context=ctx)[0]
         return {
             'file': {
-            'mime': mimetypes.guess_type(record.file_name)[0],
-            'name': record.name,
-            'content': record.image,
+                'mime': mimetypes.guess_type(record.file_name)[0],
+                'name': record.name,
+                'content': record.image,
+                }
             }
-        }
 
     @mapping
     def exclude(self, record):
         return {'exclude': False}
+
 
 @magento
 class ProductImageAdapter(GenericAdapter):

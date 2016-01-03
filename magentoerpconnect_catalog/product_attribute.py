@@ -24,8 +24,6 @@
 
 
 from openerp.osv import fields, orm
-#from openerp.tools.translate import _
-from openerp.osv.osv import except_osv
 from openerp.addons.connector.unit.mapper import (
     mapping,
     #changed_by,
@@ -34,7 +32,9 @@ from openerp.addons.connector.unit.mapper import (
     ExportMapper,)
 #from openerp.addons.connector.exception import MappingError
 from openerp.addons.magentoerpconnect.backend import magento
-from openerp.addons.magentoerpconnect.unit.backend_adapter import GenericAdapter
+from openerp.addons.magentoerpconnect.unit.backend_adapter import (
+    GenericAdapter,
+    )
 from openerp.addons.magentoerpconnect.unit.binder import MagentoModelBinder
 from openerp.addons.magentoerpconnect.unit.delete_synchronizer import (
     MagentoDeleteSynchronizer)
@@ -130,11 +130,12 @@ class AttributeSetAdapter(GenericAdapter):
         return self._call('%s.info' % self._magento_model, [int(id)])
 
     def add_attribute(self, id, attribute_id):
-        """ Add an existing attribute to an attribute set on the external system
+        """ Add an existing attribute to an attribute set
+        on the external system
         :rtype: boolean
         """
         return self._call('%s.attributeAdd' % self._magento_default_model,
-                          [str(attribute_id),str(id)])
+                          [str(attribute_id), str(id)])
 
 
 @magento
@@ -198,7 +199,7 @@ class AttributeSetExportMapper(ExportMapper):
                 "Resolution: \n"
                 "- Go to Connectors > Magento > Backends > '%s'\n"
                 "- Fill the field Attribte set Tempalte\n"
-                )% self.backend_record.name)
+                ) % self.backend_record.name)
         return {'skeletonSetId': magento_tpl_set_id}
 
 
@@ -253,7 +254,7 @@ class MagentoProductAttribute(orm.Model):
             cr, uid, id, default, context=context)
 
     def _frontend_input(self, cr, uid, ids, field_names, arg, context=None):
-        res={}
+        res = {}
         for elm in self.browse(cr, uid, ids):
             field_type = elm.openerp_id.attribute_type
             map_type = {
@@ -289,7 +290,7 @@ class MagentoProductAttribute(orm.Model):
             required=True,
             help=MAGENTO_HELP),
         'frontend_input': fields.function(
-        _frontend_input,
+            _frontend_input,
             method=True,
             string='Frontend input',
             type='char',
@@ -299,7 +300,7 @@ class MagentoProductAttribute(orm.Model):
         'frontend_label': fields.char(
             'Label', required=True, size=100, help=MAGENTO_HELP),
         'position': fields.integer('Position', help=MAGENTO_HELP),
-        'group_id': fields.integer('Group', help=MAGENTO_HELP) ,
+        'group_id': fields.integer('Group', help=MAGENTO_HELP),
         'default_value': fields.char(
             'Default Value',
             size=10,
@@ -348,7 +349,8 @@ class MagentoProductAttribute(orm.Model):
         ('magento_uniq', 'unique(attribute_code)',
          "Attribute with the same code already exists : must be unique"),
         ('openerp_uniq', 'unique(backend_id, openerp_id)',
-         'An attribute can not be bound to several records on the same backend.'),
+         'An attribute can not be bound to several records on the '
+         'same backend.'),
     ]
 
 
@@ -358,7 +360,7 @@ class ProductAttributeAdapter(GenericAdapter):
     _magento_model = 'product_attribute'
 
     def delete(self, id):
-        return self._call('%s.remove'% self._magento_model,[int(id)])
+        return self._call('%s.remove' % self._magento_model, [int(id)])
 
 
 @magento
@@ -381,16 +383,15 @@ class ProductAttributeExporter(MagentoExporter):
         attr_set_binder = self.get_binder_for_model('magento.attribute.set')
         attr_set_adapter = self.get_connector_unit_for_model(
             GenericAdapter, 'magento.attribute.set')
-        
         mag_attr_id = attr_binder.to_backend(self.binding_record.id)
 
         attr_loc_ids = sess.search('attribute.location', [
             ['attribute_id', '=', self.binding_record.openerp_id.id],
             ])
-        
         for attr_location in sess.browse('attribute.location', attr_loc_ids):
             attr_set_id = attr_location.attribute_set_id.id
-            mag_attr_set_id = attr_set_binder.to_backend(attr_set_id, wrap=True)
+            mag_attr_set_id = attr_set_binder.to_backend(
+                attr_set_id, wrap=True)
             if mag_attr_set_id:
                 attr_set_adapter.add_attribute(mag_attr_set_id, mag_attr_id)
 
@@ -400,7 +401,7 @@ class ProductAttributeExportMapper(ExportMapper):
     _model_name = 'magento.product.attribute'
 
     direct = [
-        ('attribute_code', 'attribute_code'), # required
+        ('attribute_code', 'attribute_code'),  # required
         ('frontend_input', 'frontend_input'),
         ('scope', 'scope'),
         ('is_global', 'is_global'),
@@ -427,7 +428,7 @@ class ProductAttributeExportMapper(ExportMapper):
         return {'frontend_label': [{
                 'store_id': 0,
                 'label': record.frontend_label,
-            }]}
+                }]}
 
 
 # Attribute option
@@ -445,7 +446,6 @@ class AttributeOption(orm.Model):
     def create(self, cr, uid, vals, context=None):
         option_id = super(AttributeOption, self).\
             create(cr, uid, vals, context=context)
-        attr_obj = self.pool['attribute.attribute']
         mag_option_obj = self.pool['magento.attribute.option']
         option = self.browse(cr, uid, option_id, context=context)
         for binding in option.attribute_id.magento_bind_ids:
@@ -454,6 +454,7 @@ class AttributeOption(orm.Model):
                 'backend_id': binding.backend_id.id,
                 }, context=context)
         return option_id
+
 
 class MagentoAttributeOption(orm.Model):
     _name = 'magento.attribute.option'
@@ -471,8 +472,8 @@ class MagentoAttributeOption(orm.Model):
             size=64,
             translate=True,
             help=("Fill thi field if you want to force the name of the option "
-                 "in Magento, if it's empty then the name of the option will "
-                 "be used")
+                  "in Magento, if it's empty then the name of the option will "
+                  "be used")
             ),
         'is_default': fields.boolean('Is default'),
     }
@@ -485,9 +486,9 @@ class MagentoAttributeOption(orm.Model):
         ('magento_uniq', 'unique(backend_id, magento_id)',
          'An attribute option with the same ID on Magento already exists.'),
         ('openerp_uniq', 'unique(backend_id, openerp_id)',
-         'An attribute option can not be bound to several records on the same backend.'),
+         'An attribute option can not be bound to several records '
+         'on the same backend.'),
     ]
-
 
 
 @magento
@@ -496,11 +497,11 @@ class AttributeOptionAdapter(GenericAdapter):
     _magento_model = 'oerp_product_attribute'
 
     def create(self, data):
-        return self._call('%s.addOption'% self._magento_model,
+        return self._call('%s.addOption' % self._magento_model,
                           [data.pop('attribute'), data])
 
     def write(self, attribute_id, option_id, data):
-        return self._call('%s.updateOption'% self._magento_model,
+        return self._call('%s.updateOption' % self._magento_model,
                           [attribute_id, option_id, data])
 
     def delete(self, attribute_id, option_id):
@@ -538,8 +539,9 @@ class AttributeOptionExporter(MagentoExporter):
     def _export_dependencies(self):
         """Export attribute if necessary"""
         self._export_dependency(self.binding_record.openerp_id.attribute_id,
-                                    'magento.product.attribute',
-                                    exporter_class=ProductAttributeExporter)
+                                'magento.product.attribute',
+                                exporter_class=ProductAttributeExporter)
+
 
 @magento
 class AttributeOptionExportMapper(ExportMapper):
@@ -554,8 +556,8 @@ class AttributeOptionExportMapper(ExportMapper):
         else:
             ctx = {}
         storeview_ids = self.session.search(
-                'magento.storeview',
-                [('backend_id', '=', self.backend_record.id)])
+            'magento.storeview',
+            [('backend_id', '=', self.backend_record.id)])
         storeviews = self.session.browse('magento.storeview', storeview_ids)
         label = []
         for storeview in storeviews:
@@ -563,21 +565,22 @@ class AttributeOptionExportMapper(ExportMapper):
             record_translated = record.browse(context=ctx)[0]
             label.append({
                 'store_id': [storeview.magento_id],
-                'value': record_translated.magento_name\
+                'value': record_translated.magento_name
                          or record_translated.openerp_id.name,
-                })
+                         })
         return {'label': label}
 
     @mapping
     def attribute(self, record):
         binder = self.get_binder_for_model('magento.product.attribute')
-        magento_attribute_id = binder.to_backend(record.openerp_id.attribute_id.id, wrap=True)
+        magento_attribute_id = binder.to_backend(
+            record.openerp_id.attribute_id.id, wrap=True)
         return {'attribute': magento_attribute_id}
 
     @mapping
     def order(self, record):
         #TODO FIXME
-        return {'order': record.openerp_id.sequence + 1 }
+        return {'order': record.openerp_id.sequence + 1}
 
     @mapping
     def is_default(self, record):
