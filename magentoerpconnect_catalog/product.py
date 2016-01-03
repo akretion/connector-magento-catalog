@@ -20,19 +20,16 @@
 #
 ##############################################################################
 
-from openerp.osv import fields, orm, osv
-from openerp.addons.connector.queue.job import job
+from openerp.osv import fields, orm
 from openerp.addons.connector.unit.mapper import (mapping,
-                                                  changed_by,
                                                   ExportMapper,
                                                   only_create)
 from openerp.addons.magentoerpconnect.unit.delete_synchronizer import (
-        MagentoDeleteSynchronizer)
+    MagentoDeleteSynchronizer)
 from openerp.addons.magentoerpconnect.unit.export_synchronizer import (
-        MagentoTranslationExporter)
+    MagentoTranslationExporter)
 from openerp.addons.magentoerpconnect.backend import magento
 from openerp.addons.magentoerpconnect.product import (
-    ProductProductAdapter,
     ProductInventoryExport,
     )
 from openerp.addons.connector.exception import MappingError
@@ -47,18 +44,17 @@ import logging
 _logger = logging.getLogger(__name__)
 
 from openerp.addons.connector.exception import InvalidDataError
-from openerp.addons.magentoerpconnect.product import export_product_inventory
 
 
 class MagentoProductProduct(orm.Model):
-    _inherit='magento.product.product'
+    _inherit = 'magento.product.product'
 
     _columns = {
         'active': fields.boolean(
             'Active',
             help=("When a binding is unactivated, the product is delete from "
-            "Magento. This allow to remove product from Magento and so "
-            "to increase the perf on Magento side")),
+                  "Magento. This allow to remove product from Magento and so "
+                  "to increase the perf on Magento side")),
         }
 
     #Automatically create the magento binding for each image
@@ -80,7 +76,7 @@ class MagentoProductProduct(orm.Model):
         return mag_product_id
 
     def write(self, cr, uid, ids, vals, context=None):
-        if vals.get('active') == True:
+        if vals.get('active') is True:
             binding_ids = self.search(cr, uid, [
                 ('active', '=', False),
                 ], context=context)
@@ -132,7 +128,8 @@ class ProductProduct(orm.Model):
             'status': '1',
         }
 
-    def _get_magento_binding(self, cr, uid, product_id, backend_id, context=None):
+    def _get_magento_binding(self, cr, uid, product_id,
+                             backend_id, context=None):
         binding_ids = self.pool['magento.product.product'].search(cr, uid, [
             ('openerp_id', '=', product_id),
             ('backend_id', '=', backend_id),
@@ -177,15 +174,16 @@ class ProductProduct(orm.Model):
                         mag_product_obj.write(cr, uid, binding_id, {
                             'status': '1' if sale_ok else '2',
                             }, context=context)
-                        
+
     def write(self, cr, uid, ids, vals, context=None):
         super(ProductProduct, self).write(cr, uid, ids, vals, context=context)
-        if vals.get('active', True) == False:
+        if vals.get('active', True) is False:
             for product in self.browse(cr, uid, ids, context=context):
                 for bind in product.magento_bind_ids:
                     bind.write({'active': False})
         if 'sale_ok' in vals:
-            self.automatic_binding(cr, uid, ids, vals['sale_ok'], context=context)
+            self.automatic_binding(
+                cr, uid, ids, vals['sale_ok'], context=context)
         return True
 
     def create(self, cr, uid, vals, context=None):
@@ -193,7 +191,8 @@ class ProductProduct(orm.Model):
             cr, uid, vals, context=context)
         product = self.browse(cr, uid, product_id, context=context)
         if product.sale_ok:
-            self.automatic_binding(cr, uid, [product.id], True, context=context)
+            self.automatic_binding(
+                cr, uid, [product.id], True, context=context)
         return product_id
 
     def _check_uniq_magento_product(self, cr, uid, ids):
@@ -209,7 +208,7 @@ class ProductProduct(orm.Model):
                 _('You can not have more than one active binding for '
                   'a product. Here is the list of product ids with a '
                   'duplicated binding : %s')
-                  % ", ".join([str(x[0]) for x in result]))
+                % ", ".join([str(x[0]) for x in result]))
         return True
 
     _constraints = [(
@@ -219,11 +218,9 @@ class ProductProduct(orm.Model):
         )]
 
 
-@on_record_write(model_names=[
-        'magento.product.product',
-    ])
+@on_record_write(model_names=['magento.product.product'])
 def delay_export(session, model_name, record_id, vals=None):
-    if vals.get('active', True) == False:
+    if vals.get('active', True) is False:
         magentoerpconnect.delay_unlink(session, model_name, record_id)
 
 
@@ -250,26 +247,27 @@ class ProductProductExporter(MagentoTranslationExporter):
             for field in required_field:
                 if not data.get(field):
                     raise InvalidDataError(
-                        'The field %s is required for exporting the product' % field)
+                        'The field %s is required for exporting the product'
+                        % field)
         for key, vals in data.items():
             if isinstance(vals, list):
                 if len(vals) != len(list(set(vals))):
                     raise orm.except_orm(
                         _('Error'),
-                        _('Some key are duplicated for the field %s. Details: %s') % (key, vals))
+                        _('Some key are duplicated for the field %s. '
+                          'Details: %s') % (key, vals))
 
     def _create(self, data):
         """ Create the Magento record """
         # special check on data before export
         self._validate_data(data)
-        
         sku = data.pop('sku')
         attr_set_id = data.pop('attrset')
         product_type = data.pop('product_type')
         try:
             return self.backend_adapter.create(
                 product_type, attr_set_id, sku, data)
-        except SkuAlreadyExistInBackend, e:
+        except SkuAlreadyExistInBackend:
             _logger.warning(('Product %s already exist in Magento. '
                             'Try to bind it') % sku)
             record = self.backend_adapter.read_with_sku(sku)
@@ -282,7 +280,8 @@ class ProductProductExporter(MagentoTranslationExporter):
     def _export_dependencies(self):
         """ Export the dependencies for the product"""
         #TODO add export of category
-        attribute_binder = self.get_binder_for_model('magento.product.attribute')
+        attribute_binder = self.get_binder_for_model(
+            'magento.product.attribute')
         option_binder = self.get_binder_for_model('magento.attribute.option')
         record = self.binding_record
         for group in record.attribute_group_ids:
@@ -291,7 +290,8 @@ class ProductProductExporter(MagentoTranslationExporter):
                     attribute.attribute_id.id, wrap=True)
                 if attribute_ext_id:
                     options = []
-                    if attribute.ttype == 'many2one' and record[attribute.name]:
+                    if (attribute.ttype == 'many2one'
+                            and record[attribute.name]):
                         options = [record[attribute.name]]
                     elif attribute.ttype == 'many2many':
                         options = record[attribute.name]
@@ -301,15 +301,18 @@ class ProductProductExporter(MagentoTranslationExporter):
                             ctx['connector_no_export'] = True
                             #TODO FIXME
                             if not option.magento_bind_ids:
-                                binding_id = self.session.pool['magento.attribute.option'].create(
-                                                    self.session.cr, self.session.uid,{
-                                                    'backend_id': self.backend_record.id,
-                                                    'openerp_id': option.id,
-                                                    'name': option.name,
-                                                    }, context=ctx)
+                                binding_id = option_binder.create(
+                                    self.session.cr, self.session.uid, {
+                                        'backend_id': self.backend_record.id,
+                                        'openerp_id': option.id,
+                                        'name': option.name,
+                                    }, context=ctx)
                             else:
                                 binding_id = option.magento_bind_ids[0].id
-                            export_record(self.session, 'magento.attribute.option', binding_id)
+                            export_record(self.session,
+                                          'magento.attribute.option',
+                                          binding_id)
+
 
 @magento
 class ProductProductExportMapper(ExportMapper):
@@ -341,13 +344,14 @@ class ProductProductExportMapper(ExportMapper):
                 #'updated_at': record.updated_at,
                 'status': record.status,
                 'visibility': record.visibility,
-                'product_type': record.product_type }
+                'product_type': record.product_type}
 
     @mapping
     def sku(self, record):
         sku = record.default_code
         if not sku:
-            raise MappingError("The product attribute default code cannot be empty.")
+            raise MappingError(
+                "The product attribute default code cannot be empty.")
         return {'sku': sku}
 
     @mapping
@@ -388,7 +392,6 @@ class ProductProductExportMapper(ExportMapper):
     @mapping
     def get_product_attribute_option(self, record):
         result = {}
-        attribute_binder = self.get_binder_for_model('magento.product.attribute')
         option_binder = self.get_binder_for_model('magento.attribute.option')
         for group in record.attribute_group_ids:
             for attribute in group.attribute_ids:
@@ -412,12 +415,14 @@ class ProductProductExportMapper(ExportMapper):
                     options = record[attribute.name]
                     if options:
                         result[magento_attribute.attribute_code] = \
-                            [option_binder.to_backend(option.id, wrap=True) for option in options]
+                            [option_binder.to_backend(option.id, wrap=True)
+                             for option in options]
                     else:
                         result[magento_attribute.attribute_code] = 'None'
                 else:
                     #TODO add support of lang
-                    result[magento_attribute.attribute_code] = record[attribute.name]
+                    result[magento_attribute.attribute_code] =\
+                        record[attribute.name]
         return result
 
     @only_create
