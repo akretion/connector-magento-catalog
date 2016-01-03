@@ -53,7 +53,6 @@ EXPORT_RECORD_PRIORITY = {
 @on_record_write(model_names=[
         'magento.product.category',
         'magento.product.product',
-#        'magento.product.attribute',
         'magento.attribute.option',
         'magento.product.image',
     ])
@@ -67,7 +66,6 @@ def delay_export(session, model_name, record_id, vals=None):
         'product.product',
         'product.category',
         'product.image',
-#        'attribute.attribute',
         'attribute.option',
     ])
 def delay_export_all_bindings(session, model_name, record_id, vals=None):
