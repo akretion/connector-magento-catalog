@@ -14,10 +14,12 @@
                         <field name="id" readonly="1"/>
                         <field name="backend_id" string="Backend"/>
                         <field name="magento_id"/>
+                        <field name="sync_state"/>
                     </tree>
                     <form>
                         <field name="backend_id" string="Backend"/>
                         <field name="magento_id"/>
+                        <field name="sync_state"/>
                     </form>
                 </field>
             </group>

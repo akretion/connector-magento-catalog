@@ -75,7 +75,7 @@ class ProductImage(orm.Model):
 class MagentoProductImage(orm.Model):
     _name = 'magento.product.image'
     _description = "Magento product image"
-    _inherit = 'magento.binding'
+    _inherit = ['magento.binding', 'magento.binding.cron.export']
     _inherits = {'product.image': 'openerp_id'}
 
     _columns = {

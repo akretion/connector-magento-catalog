@@ -62,6 +62,7 @@ TODO:
     'product_view.xml',
     'product_attribute_view.xml',
     'product_image_view.xml',
+    'magentoerpconnect_data.xml',
     ],
  'installable': True,
  'application': False,

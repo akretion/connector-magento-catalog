@@ -24,7 +24,7 @@ from openerp.addons.connector.event import (on_record_write,
                                             on_record_create,
                                             on_record_unlink
                                             )
-
+from openerp.addons.connector.session import ConnectorSession
 import openerp.addons.magentoerpconnect.consumer as magentoerpconnect
 
 from openerp.addons.connector.connector import Binder
@@ -44,18 +44,12 @@ EXPORT_RECORD_PRIORITY = {
 
 
 @on_record_create(model_names=[
-    'magento.product.category',
-    'magento.product.product',
     'magento.product.attribute',
     'magento.attribute.set',
     'magento.attribute.option',
-    'magento.product.image',
     ])
 @on_record_write(model_names=[
-    'magento.product.category',
-    'magento.product.product',
     'magento.attribute.option',
-    'magento.product.image',
     ])
 def delay_export(session, model_name, record_id, vals=None):
     priority = EXPORT_RECORD_PRIORITY.get(model_name, 100)
@@ -65,9 +59,6 @@ def delay_export(session, model_name, record_id, vals=None):
 
 
 @on_record_write(model_names=[
-    'product.product',
-    'product.category',
-    'product.image',
     'attribute.option',
     ])
 def delay_export_all_bindings(session, model_name, record_id, vals=None):
@@ -76,8 +67,8 @@ def delay_export_all_bindings(session, model_name, record_id, vals=None):
 
 
 @on_record_write(model_names=['product.template'])
-def delay_export_all_product_bindings(session, model_name, record_id,
-                                      vals=None):
+def set_all_product_bindings_to_synchronise(session, model_name, record_id,
+                                            vals=None):
     if session.context.get('connector_no_export'):
         return
     model = session.pool.get(model_name)
@@ -86,8 +77,27 @@ def delay_export_all_product_bindings(session, model_name, record_id,
     if not vals:
         return True
     for variant in record.variant_ids:
-        magentoerpconnect.delay_export_all_bindings(session, variant._name,
-                                                    variant.id, vals=vals)
+        set_all_binding_to_synchronise(
+            session, variant._name, variant.id, vals=vals)
+
+
+@on_record_write(model_names=[
+    'product.category',
+    'product.product',
+    'product.image',
+    ])
+def set_all_binding_to_synchronise(session, model_name, record_id, vals=None):
+    if session.context.get('connector_no_export'):
+        return
+    record = session.browse(model_name, record_id)
+    binding_ids = [binding.id for binding in record.magento_bind_ids]
+    if binding_ids:
+        with session.change_context({'connector_no_export': True}):
+            session.write(
+                record.magento_bind_ids[0]._name,
+                binding_ids, {
+                    'sync_state': 'todo'
+                })
 
 
 @on_record_unlink(model_names=[

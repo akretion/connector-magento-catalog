@@ -11,6 +11,8 @@
             <group col="4">
                 <field name="backend_id" colspan="2"/>
                 <field name="magento_id" readonly="1" colspan="2"/>
+                <field name="sync_state"/>
+                <field name="write_date"/>
             </group>
         </xpath>
         <xpath expr="/form" position="inside">

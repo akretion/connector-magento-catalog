@@ -47,7 +47,8 @@ from openerp.addons.connector.exception import InvalidDataError
 
 
 class MagentoProductProduct(orm.Model):
-    _inherit = 'magento.product.product'
+    _inherit = ['magento.product.product', 'magento.binding.cron.export']
+    _name = 'magento.product.product'
 
     _columns = {
         'active': fields.boolean(
@@ -56,6 +57,12 @@ class MagentoProductProduct(orm.Model):
                   "Magento. This allow to remove product from Magento and so "
                   "to increase the perf on Magento side")),
         }
+
+    def _get_excluded_fields(self, cr, uid, context=None):
+        res = super(MagentoProductProduct, self)._get_excluded_fields(
+            cr, uid, context=context)
+        res += ['magento_qty', 'backorders']
+        return res
 
     #Automatically create the magento binding for each image
     def create(self, cr, uid, vals, context=None):
@@ -425,7 +432,6 @@ class ProductProductExportMapper(ExportMapper):
                         record[attribute.name]
         return result
 
-    @only_create
     @mapping
     def stock_data(self, record):
         inventory_exporter = self.get_connector_unit_for_model(

@@ -42,7 +42,9 @@ from openerp.tools.translate import _
 
 
 class MagentoProductCategory(orm.Model):
-    _inherit = 'magento.product.category'
+    _inherit = ['magento.product.category', 'magento.binding.cron.export']
+    _name = 'magento.product.category'
+
     MAGENTO_HELP = "This field is a technical / configuration field for " \
                    "the category on Magento. \nPlease refer to the Magento " \
                    "documentation for details. "
