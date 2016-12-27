@@ -23,6 +23,9 @@
 import logging
 from openerp.osv import orm, fields
 from openerp.addons.connector.session import ConnectorSession
+from openerp.addons.connector.queue.job import job, related_action
+from openerp.addons.magentoerpconnect.related_action import unwrap_binding
+from openerp.addons.magentoerpconnect.connector import get_environment
 from openerp.addons.magentoerpconnect.unit.import_synchronizer import (
     import_batch,
     )
@@ -66,7 +69,13 @@ class magento_backend(orm.Model):
     }
 
     def _get_domain_to_export(self, cr, uid, ids, model, context=None):
-        domain = [('sync_state', '=', 'todo')]
+        domain = [('sync_state', '=', 'complete')]
+        if ids:
+            domain.append(('backend_id', 'in', ids))
+        return domain
+
+    def _get_domain_to_partial_export(self, cr, uid, ids, model, context=None):
+        domain = [('sync_state', '=', 'partial')]
         if ids:
             domain.append(('backend_id', 'in', ids))
         return domain
@@ -88,7 +97,14 @@ class magento_backend(orm.Model):
             binding_ids = obj.search(cr, uid, domain, context=context)
             for binding_id in binding_ids:
                 delay_export(session, model_name, binding_id,
-                             vals={'sync_state': 'todo'})
+                             vals={'sync_state': 'complete'})
+            domain = self._get_domain_to_partial_export(
+                cr, uid, ids, model_name, context=context)
+            binding_ids = obj.search(cr, uid, domain, context=context)
+            for binding_id in binding_ids:
+                partial_export.delay(
+                    session, model_name, binding_id,
+                    vals={'sync_state': 'partial'})
 
 
 
@@ -103,7 +119,8 @@ class MagentoBindingCronExport(orm.AbstractModel):
     _columns = {
         'sync_state': fields.selection([
             ('done', 'Done'),
-            ('todo', 'Todo'),
+            ('complete', 'Complete'),
+            ('partial', 'Partial'),
             ], string="Sync State"),
         'write_date': fields.datetime('Last Modif'),
     }
@@ -114,6 +131,12 @@ class MagentoBindingCronExport(orm.AbstractModel):
 
     def _get_excluded_fields(self, cr, uid, context=None):
         return ['magento_id']
+
+    def _get_partial_fields(self, cr, uid, context=None):
+        return []
+
+    def _get_mapped_partial_fields(self, cr, uid, context=None):
+        return []
 
     def _should_be_exported(self, cr, uid, vals, context=None):
         excluded_fields = self._get_excluded_fields(cr, uid, context=context)
@@ -133,19 +156,28 @@ class MagentoBindingCronExport(orm.AbstractModel):
                 'Fiels was %s', vals.keys())
         return res
 
-    def create(self, cr, uid, vals, context=None):
-        if self._should_be_exported(cr, uid, vals, context=context):
-            vals['sync_state'] = 'todo'
-        else:
-            vals['sync_state'] = 'done'
-        return super(MagentoBindingExport, self).create(
-            cr, uid, vals, context=context)
-
-    def write(self, cr, uid, ids, vals, context=None):
-        if self._should_be_exported(cr, uid, vals, context=context):
-            vals['sync_state'] = 'todo'
-        return super(MagentoBindingCronExport, self).write(
-            cr, uid, ids, vals, context=context)
+    def _get_sync_state(self, cr, uid, record, vals, context=None):
+        if context is None:
+            context = {}
+        sync_state = False
+        if record.sync_state == 'complete':
+            _logger.debug('Magento Catalog sync state already complete')
+            return sync_state
+        excluded_fields = self._get_excluded_fields(cr, uid, context=context)
+        fields = vals.keys()
+        if fields and excluded_fields:
+            fields = list(set(fields).difference(excluded_fields))
+        partial_fields = self._get_partial_fields(cr, uid, context=context)
+        if fields and partial_fields and record.magento_id:
+            complete_fields = list(set(fields).difference(partial_fields))
+            if complete_fields:
+                sync_state = 'complete'
+            else:
+                sync_state = 'partial'
+        elif fields:
+            sync_state = 'complete'
+        _logger.debug('Magento Catalog set sync state %s to %s fields where %s' % (sync_state, record._name, fields))
+        return sync_state
 
 
 def _after_export(self):
@@ -155,3 +187,44 @@ def _after_export(self):
             context={'connector_no_export': True})
 
 MagentoExporter._after_export = _after_export
+
+
+def _export_in_magento(self, cr, uid, ids, sync_state, context=None):
+    if context is None:
+        context = {}
+    ctx = context.copy()
+    ctx['connector_no_export'] = True
+    for record in self.browse(cr, uid, ids, context=context):
+        for binding in record.magento_bind_ids:
+            if binding.sync_state != 'complete' and binding.sync_state != sync_state:
+                # Force complete export if not exported yet
+                if not binding.magento_id:
+                    sync_state = 'complete'
+                binding.write({'sync_state': sync_state}, context=ctx)
+    return True
+
+orm.Model._export_in_magento = _export_in_magento
+
+
+@job
+@related_action(action=unwrap_binding)
+def partial_export(session, model_name, binding_id, vals):
+    """ Partial export of a record on Magento """
+    if model_name in (
+            'magento.product.category',
+            'magento.product.product',
+            'magento.product.image'):
+        if not session.search(model_name, [['id', '=', binding_id]]):
+            return "The binding do not exist anymore, skip it"
+    record = session.pool[model_name].browse(
+        session.cr, session.uid, binding_id, session.context)
+    backend_id = record.backend_id.id
+    env = get_environment(session, model_name, backend_id)
+    exporter = env.get_connector_unit(MagentoExporter)
+    mapped_vals = exporter.mapper.map_record(record).values()
+    partial_fields = session.pool[model_name]._get_mapped_partial_fields(
+        session.cr, session.uid, session.context)
+    partial_vals = {field: mapped_vals[field] for field in partial_fields}
+    exporter.backend_adapter.write(record.magento_id, partial_vals)
+    #sync date ?
+    return record.write({'sync_state': 'done'}, context={'connector_no_export': True})

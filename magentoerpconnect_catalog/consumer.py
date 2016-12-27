@@ -90,13 +90,35 @@ def set_all_binding_to_synchronise(session, model_name, record_id, vals=None):
     if session.context.get('connector_no_export'):
         return
     record = session.browse(model_name, record_id)
-    binding_ids = [binding.id for binding in record.magento_bind_ids]
-    if binding_ids:
+    for binding in record.magento_bind_ids:
+        sync_state = session.pool[binding._name]._get_sync_state(
+            session.cr, session.uid, binding, vals, context=session.context)
+        if sync_state:
+            with session.change_context({'connector_no_export': True}):
+                session.write(
+                    binding._name,
+                    binding.id, {
+                        'sync_state': sync_state
+                    })
+
+
+@on_record_write(model_names=[
+    'magento.product.category',
+    'magento.product.product',
+    'magento.product.image',
+    ])
+def set_binding_to_synchronise(session, model_name, record_id, vals=None):
+    if session.context.get('connector_no_export'):
+        return
+    binding = session.browse(model_name, record_id)
+    sync_state = session.pool[model_name]._get_sync_state(
+        session.cr, session.uid, binding, vals, context=session.context)
+    if sync_state:
         with session.change_context({'connector_no_export': True}):
             session.write(
-                record.magento_bind_ids[0]._name,
-                binding_ids, {
-                    'sync_state': 'todo'
+                model_name,
+                binding.id, {
+                    'sync_state': sync_state
                 })
 
 
