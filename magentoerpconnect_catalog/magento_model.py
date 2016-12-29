@@ -130,7 +130,7 @@ class MagentoBindingCronExport(orm.AbstractModel):
     }
 
     def _get_excluded_fields(self, cr, uid, context=None):
-        return ['magento_id']
+        return ['magento_id', 'sync_state']
 
     def _get_partial_fields(self, cr, uid, context=None):
         return []
@@ -160,11 +160,13 @@ class MagentoBindingCronExport(orm.AbstractModel):
         if context is None:
             context = {}
         sync_state = False
+        fields = vals.keys()
         if record.sync_state == 'complete':
+            if fields == ['sync_state'] and vals['sync_state'] == 'partial':
+                sync_state = 'complete'
             _logger.debug('Magento Catalog sync state already complete')
             return sync_state
         excluded_fields = self._get_excluded_fields(cr, uid, context=context)
-        fields = vals.keys()
         if fields and excluded_fields:
             fields = list(set(fields).difference(excluded_fields))
         partial_fields = self._get_partial_fields(cr, uid, context=context)
