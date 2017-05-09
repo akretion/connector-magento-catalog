@@ -229,6 +229,12 @@ class ProductProduct(orm.Model):
 def delay_export(session, model_name, record_id, vals=None):
     if vals.get('active', True) is False:
         magentoerpconnect.delay_unlink(session, model_name, record_id)
+        record = session.pool[model_name].browse(
+            session.cr, session.uid, binding_id, session.context)
+        if record.image_ids:
+            for image in record.images_ids:
+                for binding in image.magento_bind_ids:
+                    binding.unlink()
 
 
 @magento
