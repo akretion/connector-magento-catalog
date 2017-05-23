@@ -230,11 +230,14 @@ def delay_export(session, model_name, record_id, vals=None):
     if vals.get('active', True) is False:
         magentoerpconnect.delay_unlink(session, model_name, record_id)
         record = session.pool[model_name].browse(
-            session.cr, session.uid, binding_id, session.context)
+            session.cr, session.uid, record_id, session.context)
         if record.image_ids:
-            for image in record.images_ids:
+            for image in record.image_ids:
                 for binding in image.magento_bind_ids:
-                    binding.unlink()
+                    ctx = session.context.copy()
+                    ctx['connector_no_export'] = True
+                    session.pool['magento.product.image'].unlink(
+                        session.cr, session.uid, binding.id, context=ctx)
 
 
 @magento
