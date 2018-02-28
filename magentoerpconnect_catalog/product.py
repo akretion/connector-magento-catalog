@@ -317,7 +317,7 @@ class ProductProductExporter(MagentoTranslationExporter):
                             ctx['connector_no_export'] = True
                             #TODO FIXME
                             if not option.magento_bind_ids:
-                                binding_id = option_binder.create(
+                                binding_id = self.session.pool['magento.attribute.option'].create(
                                     self.session.cr, self.session.uid, {
                                         'backend_id': self.backend_record.id,
                                         'openerp_id': option.id,
