@@ -353,7 +353,7 @@ class ProductProductExportMapper(ExportMapper):
         return {'name': record.name,
                 'description': record.description,
                 'weight': record.weight,
-                'price': record.list_price,
+                'price': record.lst_price,
                 'short_description': record.description_sale,
                 'type': record.product_type,
                 'created_at': record.created_at,
